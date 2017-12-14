@@ -1,3 +1,15 @@
 .app {
      /* Add app styles here */
 }
+
+.green-cell {
+   background-color: 'green'
+}
+
+.yellow-cell {
+   background-color: 'yellow'
+}
+
+.red-cell {
+   background-color: 'red'
+}

@@ -31,6 +31,7 @@ Ext.define('CustomApp', {
            for (var i=0; i < chartData.categories.length; i++){
                row[chartData.categories[i]] = chartData.series[j].data[i];
            }
+           row.total = Ext.Array.sum(chartData.series[j].data);
            data.push(row);
          }
 
@@ -59,7 +60,24 @@ Ext.define('CustomApp', {
                    text: 'Completed'
                 },{
                    dataIndex:'Accepted',
-                   text: 'Accepted'
+                   text: 'Accepted',
+                   renderer: function(val,metaData, record){
+                       var total = record.get('total') || 0;
+                       var acceptedPct = (total > 0 ? val/total : 0) * 100;
+                      console.log('acceptedPct', acceptedPct);
+                       metaData.style = 'background-color:green;';
+                       if (acceptedPct < 50 ){
+                           metaData.style = 'background-color:yellow;';
+                       }
+                       if (acceptedPct < 25){
+                           metaData.style = 'background-color:red;';
+                       }
+                       return val;
+
+                   }
+                },{
+                   dataIndex: 'total',
+                   text: 'Total'
                 }],
                 store: store,
                 showPagingToolbar: false,
