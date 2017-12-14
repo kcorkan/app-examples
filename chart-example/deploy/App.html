@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>chart-example</title>
+
+    <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
+
+    <script type="text/javascript">
+        Rally.onReady(function () {
+                Ext.define("CustomApp",{extend:"Rally.app.App",componentCls:"app",launch:function(){this._buildChartData().then({success:function(chartData){var items=[this._buildChart(chartData),this._buildGrid(chartData)];this.add({xtype:"container",items:items})},scope:this})},_buildGrid:function(chartData){for(var data=[],j=0;j<chartData.series.length;j++){for(var row={name:chartData.series[j].name},i=0;i<chartData.categories.length;i++)row[chartData.categories[i]]=chartData.series[j].data[i];data.push(row)}var fields=Ext.Object.getKeys(data[0]);console.log("data",data,fields);var store=Ext.create("Rally.data.custom.Store",{data:data,fields:fields});return{xtype:"rallygrid",columnCfgs:[{dataIndex:"name",text:"Name"},{dataIndex:"Defined",text:"Defined"},{dataIndex:"In-Progress",text:"In-Progress"},{dataIndex:"Completed",text:"Completed"},{dataIndex:"Accepted",text:"Accepted"}],store:store,showPagingToolbar:!1,showRowActionsColumn:!1}},_buildChart:function(chartData){return{xtype:"rallychart",chartData:chartData,height:400,chartConfig:{chart:{type:"column"},title:{text:"Artifacts by Schedule State"},plotOptions:{column:{dataLabels:{enabled:!0},point:{events:{click:function(evt){console.log("evt",evt.point),alert(evt.point.y+" "+evt.point.series.name+"(s) are "+evt.point.category)}}}}}}}},_showErrorNotification:function(errorMessage){alert(errorMessage)},_buildChartData:function(){var deferred=Ext.create("Deft.Deferred");return Deft.Chain.parallel([function(){return this._getArtifactCountByState("UserStory","Defined")},function(){return this._getArtifactCountByState("UserStory","In-Progress")},function(){return this._getArtifactCountByState("UserStory","Completed")},function(){return this._getArtifactCountByState("UserStory","Accepted")},function(){return this._getArtifactCountByState("Defect","Defined")},function(){return this._getArtifactCountByState("Defect","In-Progress")},function(){return this._getArtifactCountByState("Defect","Completed")},function(){return this._getArtifactCountByState("Defect","Accepted")}],this).then({success:function(results){console.log("results",results);var categories=["Defined","In-Progress","Completed","Accepted"],series=[{name:"Defects",data:[results[4],results[5],results[6],results[7]]},{name:"User Stories",data:[results[0],results[1],results[2],results[3]]}],chartData={series:series,categories:categories};deferred.resolve(chartData)}}),deferred.promise},_getArtifactCountByState:function(artifactType,state){var deferred=Ext.create("Deft.Deferred"),store=Ext.create("Rally.data.wsapi.Store",{model:artifactType,fetch:["ObjectID","FormattedID","ScheduleState"],filters:[{property:"ScheduleState",value:state}]}).load({callback:function(records,operation){operation.wasSuccessful()?deferred.resolve(operation.resultSet.totalRecords):deferred.reject("Error loading story count")}});return deferred.promise}});
+
+            Rally.launchApp('CustomApp', {
+                name:"chart-example",
+	            parentRepos:""
+            });
+
+        });
+    </script>
+
+
+    <style type="text/css">
+        
+    </style>
+</head>
+<body>
+</body>
+</html>
