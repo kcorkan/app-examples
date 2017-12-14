@@ -5,6 +5,7 @@ Ext.define('CustomApp', {
         //Write app code here
         this.add({
            xtype:'container',
+           padding: 25,
            html: 'this is an app that demonstrates different templates using rab --templates ./templates'
         });
         //API Docs: https://help.rallydev.com/apps/2.1/doc/
