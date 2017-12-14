@@ -77,7 +77,7 @@ Ext.define('CustomApp', {
     },
     getStoriesAndChildTestCases: function(){
         Deft.Chain.pipeline([
-           function(){ return this._getStories(); },
+           function(){ return this._getStories2(); },
            function(stories){ return this._getTestCases(stories); }
         ], this).then({
            success: function(successResult){
@@ -147,6 +147,19 @@ Ext.define('CustomApp', {
          });
 
          return deferred.promise;
+    },
+    _getStories2: function(){
+
+      return myToolbox.loadWsapiRecords({
+        model: 'UserStory',
+        fetch: ['ObjectID','FormattedID','ScheduleState'],
+        filters: [{
+           property: 'ScheduleState',
+           operator: '>=',
+           value: 'Completed'
+        }]
+        });
+
     }
 
 
