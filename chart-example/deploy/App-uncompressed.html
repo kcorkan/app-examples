@@ -7,6 +7,91 @@
 
     <script type="text/javascript">
         Rally.onReady(function () {
+                Ext.define('FileUtility',{
+  singleton: true,
+  saveCSVToFile:function(csv,file_name,type_object){
+      if (type_object === undefined){
+          type_object = {type:'text/csv;charset=utf-8'};
+      }
+      this.saveAs(csv,file_name, type_object);
+  },
+  saveAs: function(textToWrite, fileName)
+  {
+      if (Ext.isIE9m){
+          Rally.ui.notify.Notifier.showWarning({message: "Export is not supported for IE9 and below."});
+          return;
+      }
+
+      var textFileAsBlob = null;
+      try {
+          textFileAsBlob = new Blob([textToWrite], {type:'text/plain'});
+      }
+      catch(e){
+          window.BlobBuilder = window.BlobBuilder ||
+              window.WebKitBlobBuilder ||
+              window.MozBlobBuilder ||
+              window.MSBlobBuilder;
+          if (window.BlobBuilder && e.name == 'TypeError'){
+              bb = new BlobBuilder();
+              bb.append([textToWrite]);
+              textFileAsBlob = bb.getBlob("text/plain");
+          }
+      }
+
+      if (!textFileAsBlob){
+          Rally.ui.notify.Notifier.showWarning({message: "Export is not supported for this browser."});
+          return;
+      }
+
+      var fileNameToSaveAs = fileName;
+
+      if (Ext.isIE10p){
+          window.navigator.msSaveOrOpenBlob(textFileAsBlob,fileNameToSaveAs); // Now the user will have the option of clicking the Save button and the Open button.
+          return;
+      }
+
+      var url = this.createObjectURL(textFileAsBlob);
+
+      if (url){
+          var downloadLink = document.createElement("a");
+          if ("download" in downloadLink){
+              downloadLink.download = fileNameToSaveAs;
+          } else {
+              //Open the file in a new tab
+              downloadLink.target = "_blank";
+          }
+
+          downloadLink.innerHTML = "Download File";
+          downloadLink.href = url;
+          if (!Ext.isChrome){
+              // Firefox requires the link to be added to the DOM
+              // before it can be clicked.
+              downloadLink.onclick = this.destroyClickedElement;
+              downloadLink.style.display = "none";
+              document.body.appendChild(downloadLink);
+          }
+          downloadLink.click();
+      } else {
+          Rally.ui.notify.Notifier.showError({message: "Export is not supported "});
+      }
+
+  },
+  createObjectURL: function ( file ) {
+      if ( window.webkitURL ) {
+          return window.webkitURL.createObjectURL( file );
+      } else if ( window.URL && window.URL.createObjectURL ) {
+          return window.URL.createObjectURL( file );
+      } else {
+          return null;
+      }
+  },
+  destroyClickedElement: function(event)
+  {
+      document.body.removeChild(event.target);
+  }
+
+});
+
                 Ext.define('CustomApp', {
     extend: 'Rally.app.App',
     componentCls: 'app',
@@ -16,13 +101,14 @@
         this._buildChartData().then({
             success: function(chartData){
                var items = [
+                 this._getExportButton(),
                  this._buildChart(chartData),
                  this._buildGrid(chartData)
                ];
 
                this.add({
                    xtype: 'container',
-                   //layout: {type: 'hbox'},
+                   //layout: {type: 'vbox'},
                    items: items
                });
             },
@@ -30,6 +116,52 @@
         });
 
         //API Docs: https://help.rallydev.com/apps/2.1/doc/
+    },
+    _getExportButton: function(){
+        return {
+           xtype: 'rallybutton',
+           iconCls: 'icon-export',
+           margin: 25,
+           listeners: {
+              click: this._exportMyData,
+              scope: this
+           }
+        };
+    },
+    _exportMyData: function(){
+        console.log('_exportMyData');
+
+         var grid = this.down('rallygrid');
+         if (!grid){
+            alert ('Nothing to export');
+            return;
+         }
+
+         var store = grid.getStore();
+
+         var columns = grid.columnCfgs;
+         var csv = [];
+
+         var headerRow = Ext.Array.map(columns, function(col){
+             return col.text;
+         });
+         headerRow = headerRow.join(',');
+         csv.push(headerRow);
+
+         store.each(function(record){
+           var row = [];
+           Ext.Array.each(columns, function(col){
+              row.push(record.get(col.dataIndex));
+           });
+           row = row.join(',');
+           csv.push(row);
+         });
+
+         csv = csv.join('\r\n');
+         console.log('csv',csv);
+
+         FileUtility.saveAs(csv, "my-csv-file.csv");
+
     },
     _buildGrid: function(chartData){
          var data = [];
@@ -40,6 +172,7 @@
            for (var i=0; i < chartData.categories.length; i++){
                row[chartData.categories[i]] = chartData.series[j].data[i];
            }
+           row.total = Ext.Array.sum(chartData.series[j].data);
            data.push(row);
          }
 
@@ -68,7 +201,24 @@
                    text: 'Completed'
                 },{
                    dataIndex:'Accepted',
-                   text: 'Accepted'
+                   text: 'Accepted',
+                   renderer: function(val,metaData, record){
+                       var total = record.get('total') || 0;
+                       var acceptedPct = (total > 0 ? val/total : 0) * 100;
+                      console.log('acceptedPct', acceptedPct);
+                       metaData.style = 'background-color:green;';
+                       if (acceptedPct < 50 ){
+                           metaData.style = 'background-color:yellow;';
+                       }
+                       if (acceptedPct < 25){
+                           metaData.style = 'background-color:red;';
+                       }
+                       return val;
+
+                   }
+                },{
+                   dataIndex: 'total',
+                   text: 'Total'
                 }],
                 store: store,
                 showPagingToolbar: false,
@@ -81,6 +231,7 @@
         return {
            xtype: 'rallychart',
            chartData: chartData,
+           chartColors: [Rally.util.Colors.orange_med,Rally.util.Colors.blue_med],
 
            height: 400,
            chartConfig: {
@@ -206,6 +357,15 @@
     <style type="text/css">
         .app {
   /* Add app styles here */
+}
+.green-cell {
+  background-color: 'green';
+}
+.yellow-cell {
+  background-color: 'yellow';
+}
+.red-cell {
+  background-color: 'red';
 }
 
     </style>

@@ -7,13 +7,14 @@ Ext.define('CustomApp', {
         this._buildChartData().then({
             success: function(chartData){
                var items = [
+                 this._getExportButton(),
                  this._buildChart(chartData),
                  this._buildGrid(chartData)
                ];
 
                this.add({
                    xtype: 'container',
-                   //layout: {type: 'hbox'},
+                   //layout: {type: 'vbox'},
                    items: items
                });
             },
@@ -21,6 +22,52 @@ Ext.define('CustomApp', {
         });
 
         //API Docs: https://help.rallydev.com/apps/2.1/doc/
+    },
+    _getExportButton: function(){
+        return {
+           xtype: 'rallybutton',
+           iconCls: 'icon-export',
+           margin: 25,
+           listeners: {
+              click: this._exportMyData,
+              scope: this
+           }
+        };
+    },
+    _exportMyData: function(){
+        console.log('_exportMyData');
+
+         var grid = this.down('rallygrid');
+         if (!grid){
+            alert ('Nothing to export');
+            return;
+         }
+
+         var store = grid.getStore();
+
+         var columns = grid.columnCfgs;
+         var csv = [];
+
+         var headerRow = Ext.Array.map(columns, function(col){
+             return col.text;
+         });
+         headerRow = headerRow.join(',');
+         csv.push(headerRow);
+
+         store.each(function(record){
+           var row = [];
+           Ext.Array.each(columns, function(col){
+              row.push(record.get(col.dataIndex));
+           });
+           row = row.join(',');
+           csv.push(row);
+         });
+
+         csv = csv.join('\r\n');
+         console.log('csv',csv);
+
+         FileUtility.saveAs(csv, "my-csv-file.csv");
+
     },
     _buildGrid: function(chartData){
          var data = [];
